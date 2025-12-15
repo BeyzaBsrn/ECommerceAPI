@@ -11,14 +11,12 @@ namespace ECommerceAPI.Data
         {
         }
 
-        // Tablolarımızı veritabanına tanıtıyoruz
         public DbSet<User> Users { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductFeature> ProductFeatures { get; set; }
         public DbSet<Customer> Customers { get; set; }
 
-        // İlişkileri ve ayarları yapılandırdığımız yer
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Category -> Product İlişkisi (Bir Kategori silinirse ürünleri kalsın ama Null olsun diyebiliriz veya sildirmeyiz)
@@ -26,7 +24,7 @@ namespace ECommerceAPI.Data
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
-                .OnDelete(DeleteBehavior.Restrict); // Kategori silinirse hata ver (Güvenli yöntem)
+                .OnDelete(DeleteBehavior.Restrict); // Kategori silinirse hata verir
 
             // Product -> ProductFeature İlişkisi (Ürün silinirse özellikleri de silinsin)
             modelBuilder.Entity<ProductFeature>()

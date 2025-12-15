@@ -1,28 +1,43 @@
+using ECommerceAPI.Services;
+using ECommerceAPI.Controllers;
 using ECommerceAPI.Data; // AppDbContext'i bulmasý için
-using Microsoft.EntityFrameworkCore; // UseSqlServer'ý bulmasý için
+using Microsoft.EntityFrameworkCore; 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Veritabaný Baðlantýsýný Yapýlandýrýyoruz
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Servisleri ekliyoruz (OpenAPI/Swagger)
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+
+// (Dependency Injection)
+builder.Services.AddScoped<ECommerceAPI.Services.ICategoryService, ECommerceAPI.Services.CategoryService>();
+builder.Services.AddScoped<ECommerceAPI.Services.IProductService, ECommerceAPI.Services.ProductService>();
+
+builder.Services.AddOpenApi(); // .NET 9 yeni özelliði : AddOpenApi arkada çalýþýyor ama Swagger UI ekranýný otomatik getirmiyor.Sadece veri üretiyor, görüntü üretmiyor.
+//Bu yüzden manuel olarak Swagger UI endpointini eklememiz gerekiyor.
 
 var app = builder.Build();
 
-// 3. HTTP Ýstek Hattýný Yapýlandýrýyoruz
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi(); // Swagger JSON üretir
-    // .NET 9'da bazen SwaggerUI için ekstra kütüphane gerekir,
-    // ama þimdilik sadece JSON üretmesi yeterli, o konuya sonra deðiniriz.
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
+
 }
 
 app.UseHttpsRedirection();
 
-// Þimdilik test amaçlý basit bir endpoint býrakalým, çalýþtýðýný görelim
+// Endpointleri (Controller'larý) baðlýyoruz
+app.MapCategoryEndpoints();
+app.MapProductEndpoints();
+
+
 app.MapGet("/", () => "API Calisiyor!");
 
 app.Run();

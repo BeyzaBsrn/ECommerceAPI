@@ -9,77 +9,154 @@ namespace ECommerceAPI.Services
     {
         private readonly AppDbContext _context;
 
-        // Veritabanı bağlantısını buraya çağırıyoruz (Dependency Injection)
         public CategoryService(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<List<CategoryDto>> GetAllCategoriesAsync()
+        public async Task<ServiceResponse<List<CategoryDto>>> GetAllCategoriesAsync()
         {
-            // Veritabanındaki Category'leri al -> CategoryDto'ya çevir -> Listele
-            var categories = await _context.Categories
-                .Select(x => new CategoryDto
-                {
-                    Id = x.Id,
-                    Name = x.Name
-                })
-                .ToListAsync();
-
-            return categories;
-        }
-
-        public async Task<CategoryDto?> GetCategoryByIdAsync(int id)
-        {
-            var category = await _context.Categories.FindAsync(id);
-            if (category == null) return null;
-
-            return new CategoryDto
+            var response = new ServiceResponse<List<CategoryDto>>();
+            try
             {
-                Id = category.Id,
-                Name = category.Name
-            };
-        }
+                var categories = await _context.Categories
+                    .Select(c => new CategoryDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name
+                    })
+                    .ToListAsync();
 
-        public async Task<CategoryDto> CreateCategoryAsync(CreateCategoryDto createDto)
-        {
-            // DTO'dan gelen veriyi Entity'e çevir
-            var newCategory = new Category
-            {
-                Name = createDto.Name
-            };
-
-            // Veritabanına ekle
-            _context.Categories.Add(newCategory);
-            await _context.SaveChangesAsync();
-
-            // Geriye oluşturulanı döndür
-            return new CategoryDto
-            {
-                Id = newCategory.Id,
-                Name = newCategory.Name
-            };
-        }
-
-        public async Task UpdateCategoryAsync(UpdateCategoryDto updateDto)
-        {
-            var category = await _context.Categories.FindAsync(updateDto.Id);
-            if (category == null) return; // Veya hata fırlatılabilir
-
-            category.Name = updateDto.Name;
-            category.UpdatedAt = DateTime.Now; // Güncelleme tarihini atadık
-
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task DeleteCategoryAsync(int id)
-        {
-            var category = await _context.Categories.FindAsync(id);
-            if (category != null)
-            {
-                _context.Categories.Remove(category);
-                await _context.SaveChangesAsync();
+                response.Data = categories;
+                response.Success = true;
+                response.Message = "Kategoriler listelendi.";
             }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+            return response;
+        }
+
+        public async Task<ServiceResponse<CategoryDto>> GetCategoryByIdAsync(int id)
+        {
+            var response = new ServiceResponse<CategoryDto>();
+            try
+            {
+                var category = await _context.Categories.FindAsync(id);
+
+                if (category == null)
+                {
+                    response.Success = false;
+                    response.Message = "Kategori bulunamadı.";
+                }
+                else
+                {
+                    response.Data = new CategoryDto
+                    {
+                        Id = category.Id,
+                        Name = category.Name
+                    };
+                    response.Success = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+            return response;
+        }
+
+        public async Task<ServiceResponse<CategoryDto>> CreateCategoryAsync(CreateCategoryDto createDto)
+        {
+            var response = new ServiceResponse<CategoryDto>();
+            try
+            {
+                var category = new Category
+                {
+                    Name = createDto.Name,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.Categories.Add(category);
+                await _context.SaveChangesAsync();
+
+                response.Data = new CategoryDto
+                {
+                    Id = category.Id,
+                    Name = category.Name
+                };
+                response.Success = true;
+                response.Message = "Kategori eklendi.";
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+            return response;
+        }
+
+        public async Task<ServiceResponse<bool>> UpdateCategoryAsync(UpdateCategoryDto updateDto)
+        {
+            var response = new ServiceResponse<bool>();
+            try
+            {
+                var category = await _context.Categories.FindAsync(updateDto.Id);
+                if (category == null)
+                {
+                    response.Success = false;
+                    response.Message = "Kategori bulunamadı.";
+                }
+                else
+                {
+                    category.Name = updateDto.Name;
+                    category.UpdatedAt = DateTime.Now;
+
+                    await _context.SaveChangesAsync();
+
+                    response.Data = true;
+                    response.Success = true;
+                    response.Message = "Kategori güncellendi.";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+            return response;
+        }
+
+        public async Task<ServiceResponse<bool>> DeleteCategoryAsync(int id)
+        {
+            var response = new ServiceResponse<bool>();
+            try
+            {
+                var category = await _context.Categories.FindAsync(id);
+                if (category == null)
+                {
+                    response.Success = false;
+                    response.Message = "Kategori bulunamadı.";
+                }
+                else
+                {
+                    _context.Categories.Remove(category);
+                    await _context.SaveChangesAsync();
+
+                    response.Data = true;
+                    response.Success = true;
+                    response.Message = "Kategori silindi.";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+            return response;
         }
     }
 }

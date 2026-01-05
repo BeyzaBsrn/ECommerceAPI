@@ -24,7 +24,7 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi(); // Swagger JSON üretir
+    app.MapOpenApi(); 
     app.UseSwagger();
     app.UseSwaggerUI();
 

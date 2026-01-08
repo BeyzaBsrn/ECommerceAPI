@@ -2,6 +2,7 @@ using ECommerceAPI.Data;
 using ECommerceAPI.Services;
 using ECommerceAPI.Controllers;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,10 +10,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Servislerin Tanýmlanmasý (Dependency Injection)
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
+
+//Dependency Injection
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<IUserService, UserService>(); // Yeni ekledik
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 // Swagger ve API Ayarlarý
 builder.Services.AddEndpointsApiExplorer();
@@ -20,7 +27,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Geliþtirme Ortamý Ayarlarý
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -29,9 +35,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Endpoint Haritalarý
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
-app.MapUserEndpoints(); // Yeni ekledik
+app.MapUserEndpoints();
+app.MapOrderEndpoints();
 
 app.Run();

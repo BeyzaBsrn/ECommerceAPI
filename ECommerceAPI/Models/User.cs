@@ -1,4 +1,5 @@
 ﻿using ECommerceAPI.Models;
+using System.Text.Json.Serialization;
 
 namespace ECommerceAPI.Models
 {
@@ -12,6 +13,7 @@ namespace ECommerceAPI.Models
         public string Address { get; set; } = string.Empty;
 
         // İlişki: Bir kullanıcının siparişleri olur
+        [JsonIgnore]
         public List<Order> Orders { get; set; } = new List<Order>();
     }
 }

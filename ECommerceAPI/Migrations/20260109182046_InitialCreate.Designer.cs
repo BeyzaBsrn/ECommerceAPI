@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ECommerceAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260107131547_UserUpdateAndOrderTables")]
-    partial class UserUpdateAndOrderTables
+    [Migration("20260109182046_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -49,6 +49,29 @@ namespace ECommerceAPI.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Categories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 917, DateTimeKind.Local).AddTicks(5970),
+                            IsDeleted = false,
+                            Name = "Spor Ayakkabı"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 917, DateTimeKind.Local).AddTicks(6424),
+                            IsDeleted = false,
+                            Name = "Bot & Çizme"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 917, DateTimeKind.Local).AddTicks(6428),
+                            IsDeleted = false,
+                            Name = "Topuklu Ayakkabı"
+                        });
                 });
 
             modelBuilder.Entity("ECommerceAPI.Models.Order", b =>
@@ -138,6 +161,10 @@ namespace ECommerceAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -146,7 +173,6 @@ namespace ECommerceAPI.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("Stock")
@@ -160,41 +186,52 @@ namespace ECommerceAPI.Migrations
                     b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
-                });
 
-            modelBuilder.Entity("ECommerceAPI.Models.ProductFeature", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId");
-
-                    b.ToTable("ProductFeatures");
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CategoryId = 1,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 918, DateTimeKind.Local).AddTicks(6811),
+                            Description = "Koşu ve yürüyüş için ideal, rahat taban.",
+                            IsDeleted = false,
+                            Name = "Nike Air Zoom",
+                            Price = 3500m,
+                            Stock = 20
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CategoryId = 1,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 918, DateTimeKind.Local).AddTicks(6821),
+                            Description = "Klasik beyaz sneaker, günlük kullanım.",
+                            IsDeleted = false,
+                            Name = "Adidas Superstar",
+                            Price = 2800m,
+                            Stock = 15
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CategoryId = 2,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 918, DateTimeKind.Local).AddTicks(6824),
+                            Description = "Su geçirmez, hakiki deri kışlık bot.",
+                            IsDeleted = false,
+                            Name = "Harley Davidson Bot",
+                            Price = 4500m,
+                            Stock = 50
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CategoryId = 3,
+                            CreatedAt = new DateTime(2026, 1, 9, 21, 20, 45, 918, DateTimeKind.Local).AddTicks(6827),
+                            Description = "10 cm topuklu, klasik siyah.",
+                            IsDeleted = false,
+                            Name = "Stiletto Siyah",
+                            Price = 1200m,
+                            Stock = 10
+                        });
                 });
 
             modelBuilder.Entity("ECommerceAPI.Models.User", b =>
@@ -284,17 +321,6 @@ namespace ECommerceAPI.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("ECommerceAPI.Models.ProductFeature", b =>
-                {
-                    b.HasOne("ECommerceAPI.Models.Product", "Product")
-                        .WithMany("ProductFeatures")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("ECommerceAPI.Models.Category", b =>
                 {
                     b.Navigation("Products");
@@ -303,11 +329,6 @@ namespace ECommerceAPI.Migrations
             modelBuilder.Entity("ECommerceAPI.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
-                });
-
-            modelBuilder.Entity("ECommerceAPI.Models.Product", b =>
-                {
-                    b.Navigation("ProductFeatures");
                 });
 
             modelBuilder.Entity("ECommerceAPI.Models.User", b =>

@@ -2,24 +2,93 @@
 using ECommerceAPI.DTOs;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens; 
+using System.IdentityModel.Tokens.Jwt; 
+using System.Security.Claims; 
+using System.Text; 
 
 namespace ECommerceAPI.Services
 {
     public class UserService : IUserService
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration; 
 
-        public UserService(AppDbContext context)
+        public UserService(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
-        public async Task<ServiceResponse<User>> RegisterAsync(CreateUserDto userDto)
+        public async Task<ServiceResponse<string>> LoginAsync(LoginUserDto loginDto)
         {
-            var response = new ServiceResponse<User>();
+            var response = new ServiceResponse<string>();
+
+            // Kullanıcıyı Bul
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email && !u.IsDeleted);
+
+            // Kullanıcı Yoksa veya Şifre Yanlışsa
+            if (user == null || user.Password != loginDto.Password) 
+            {
+                response.Success = false;
+                response.Message = "Email veya şifre hatalı.";
+                return response;
+            }
+
+            // JWT Oluşturma
+            response.Data = CreateToken(user);
+            response.Success = true;
+            response.Message = "Giriş başarılı. Token oluşturuldu.";
+
+            return response;
+        }
+
+        // Token Oluşturan Yardımcı Metot
+        private string CreateToken(User user)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role) // Admin/User rolü
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                _configuration.GetSection("JwtSettings:SecretKey").Value!));
+
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.Now.AddDays(1), // Token 1 gün geçerli
+                SigningCredentials = creds
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+
+            return tokenHandler.WriteToken(token); 
+        }
+
+        private UserResponseDto MapToDto(User user)
+        {
+            return new UserResponseDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                Address = user.Address,
+                Role = user.Role
+            };
+        }
+
+        public async Task<ServiceResponse<UserResponseDto>> RegisterAsync(CreateUserDto userDto)
+        {
+            var response = new ServiceResponse<UserResponseDto>();
             try
             {
-                // Kontrol: Bu email ile daha önce kayıt olunmuş mu?
                 if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
                 {
                     response.Success = false;
@@ -27,21 +96,20 @@ namespace ECommerceAPI.Services
                     return response;
                 }
 
-                // Yeni Kullanıcıyı Hazırla
                 var newUser = new User
                 {
                     FullName = userDto.FullName,
                     Email = userDto.Email,
-                    Password = userDto.Password, // Not: Gerçekte şifre hashlenmeli 
+                    Password = userDto.Password,
                     Address = userDto.Address,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.Now,
+                    IsDeleted = false
                 };
 
-                // 3. Veritabanına Ekledim
                 _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
 
-                response.Data = newUser;
+                response.Data = MapToDto(newUser);
                 response.Success = true;
                 response.Message = "Kullanıcı başarıyla oluşturuldu.";
             }
@@ -53,78 +121,62 @@ namespace ECommerceAPI.Services
             return response;
         }
 
-        // TÜM KULLANICILARI GETİR (GET)
-        public async Task<ServiceResponse<List<User>>> GetAllUsersAsync()
+        public async Task<ServiceResponse<List<UserResponseDto>>> GetAllUsersAsync()
         {
-            var response = new ServiceResponse<List<User>>();
-            var users = await _context.Users.ToListAsync();
-            response.Data = users;
+            var response = new ServiceResponse<List<UserResponseDto>>();
+            var users = await _context.Users.Where(u => !u.IsDeleted).ToListAsync();
+            response.Data = users.Select(user => MapToDto(user)).ToList();
             response.Success = true;
             return response;
         }
 
-        // ID İLE TEK KULLANICI GETİR (GET BY ID)
-        public async Task<ServiceResponse<User>> GetUserByIdAsync(int id)
+        public async Task<ServiceResponse<UserResponseDto>> GetUserByIdAsync(int id)
         {
-            var response = new ServiceResponse<User>();
-            var user = await _context.Users.FindAsync(id);
+            var response = new ServiceResponse<UserResponseDto>();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted);
+
+            if (user == null) { response.Success = false; response.Message = "Kullanıcı bulunamadı."; }
+            else { response.Data = MapToDto(user); response.Success = true; }
+            return response;
+        }
+
+        public async Task<ServiceResponse<UserResponseDto>> UpdateUserAsync(UpdateUserDto userDto)
+        {
+            var response = new ServiceResponse<UserResponseDto>();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userDto.Id && !u.IsDeleted);
 
             if (user == null)
             {
                 response.Success = false;
                 response.Message = "Kullanıcı bulunamadı.";
-            }
-            else
-            {
-                response.Data = user;
-                response.Success = true;
-            }
-            return response;
-        }
-
-        // KULLANICI GÜNCELLE (PUT)
-        public async Task<ServiceResponse<User>> UpdateUserAsync(UpdateUserDto userDto)
-        {
-            var response = new ServiceResponse<User>();
-            var user = await _context.Users.FindAsync(userDto.Id);
-
-            if (user == null)
-            {
-                response.Success = false;
-                response.Message = "Güncellenecek kullanıcı bulunamadı.";
                 return response;
             }
 
-            // Verileri güncelle
             user.FullName = userDto.FullName;
             user.Email = userDto.Email;
             user.Address = userDto.Address;
+            user.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
-
-            response.Data = user;
+            response.Data = MapToDto(user);
             response.Success = true;
-            response.Message = "Kullanıcı bilgileri güncellendi.";
+            response.Message = "Kullanıcı güncellendi.";
             return response;
         }
 
-        // KULLANICI SİL (DELETE)
         public async Task<ServiceResponse<bool>> DeleteUserAsync(int id)
         {
             var response = new ServiceResponse<bool>();
             var user = await _context.Users.FindAsync(id);
 
-            if (user == null)
-            {
-                response.Success = false;
-                response.Message = "Kullanıcı bulunamadı.";
-            }
+            if (user == null || user.IsDeleted) { response.Success = false; response.Message = "Kullanıcı bulunamadı."; }
             else
             {
-                _context.Users.Remove(user);
+                user.IsDeleted = true;
+                user.UpdatedAt = DateTime.Now;
                 await _context.SaveChangesAsync();
                 response.Success = true;
-                response.Message = "Kullanıcı silindi.";
+                response.Message = "Kullanıcı silindi (Soft Delete).";
             }
             return response;
         }

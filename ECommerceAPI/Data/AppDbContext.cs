@@ -26,15 +26,8 @@ namespace ECommerceAPI.Data
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            //  Ürün -> Özellik İlişkisi
-            // Ürün silinirse özellikleri de silinsin (Cascade)
-            modelBuilder.Entity<ProductFeature>()
-                .HasOne(pf => pf.Product)
-                .WithMany(p => p.ProductFeatures)
-                .HasForeignKey(pf => pf.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
 
-            //  User -> Order İlişkisi (YENİ)
+            //  User -> Order İlişkisi 
             // Kullanıcı silinirse siparişleri de silinsin (Cascade)
             modelBuilder.Entity<Order>()
                 .HasOne(o => o.User)

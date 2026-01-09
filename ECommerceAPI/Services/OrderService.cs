@@ -14,13 +14,14 @@ namespace ECommerceAPI.Services
             _context = context;
         }
 
-        // 1. SİPARİŞ OLUŞTUR
+        // SİPARİŞ OLUŞTUR
         public async Task<ServiceResponse<Order>> CreateOrderAsync(CreateOrderDto orderDto)
         {
             var response = new ServiceResponse<Order>();
             try
             {
-                var user = await _context.Users.FindAsync(orderDto.UserId);
+                // Silinmiş kullanıcı sipariş veremez
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == orderDto.UserId && !u.IsDeleted);
                 if (user == null)
                 {
                     response.Success = false;
@@ -32,6 +33,7 @@ namespace ECommerceAPI.Services
                 {
                     UserId = orderDto.UserId,
                     OrderDate = DateTime.Now,
+                    IsDeleted = false,
                     OrderItems = new List<OrderItem>()
                 };
 
@@ -85,7 +87,7 @@ namespace ECommerceAPI.Services
             return response;
         }
 
-        // 2. TÜM SİPARİŞLERİ GETİR
+        // LİSTELE (Soft Delete Filtresi)
         public async Task<ServiceResponse<List<Order>>> GetAllOrdersAsync()
         {
             var response = new ServiceResponse<List<Order>>();
@@ -93,6 +95,7 @@ namespace ECommerceAPI.Services
                 .Include(o => o.User)
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
+                .Where(o => !o.IsDeleted) // Sadece silinmemişler
                 .ToListAsync();
 
             response.Data = orders;
@@ -100,7 +103,7 @@ namespace ECommerceAPI.Services
             return response;
         }
 
-        // 3. ID İLE SİPARİŞ GETİR
+        // 3. TEK GETİR
         public async Task<ServiceResponse<Order>> GetOrderByIdAsync(int id)
         {
             var response = new ServiceResponse<Order>();
@@ -108,7 +111,7 @@ namespace ECommerceAPI.Services
                 .Include(o => o.User)
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
 
             if (order != null)
             {
@@ -123,19 +126,19 @@ namespace ECommerceAPI.Services
             return response;
         }
 
-        // 4. SİPARİŞ SİL (STOK İADELİ)
+        // 4. SİPARİŞ İPTAL ET (SOFT DELETE + STOK İADE)
         public async Task<ServiceResponse<bool>> DeleteOrderAsync(int id)
         {
             var response = new ServiceResponse<bool>();
 
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted); // Zaten silinmişse bulma
 
             if (order == null)
             {
                 response.Success = false;
-                response.Message = "Sipariş bulunamadı.";
+                response.Message = "Sipariş bulunamadı veya zaten silinmiş.";
                 return response;
             }
 
@@ -149,11 +152,15 @@ namespace ECommerceAPI.Services
                 }
             }
 
-            _context.Orders.Remove(order);
+            // ARTIK SİLMİYORUZ, UPDATE EDİYORUZ
+            order.IsDeleted = true;
+            order.UpdatedAt = DateTime.Now;
+
+            // _context.Orders.Remove(order); <-- BU İPTAL
             await _context.SaveChangesAsync();
 
             response.Success = true;
-            response.Message = "Sipariş silindi ve stoklar iade edildi.";
+            response.Message = "Sipariş iptal edildi (Soft Delete) ve stoklar iade edildi.";
             return response;
         }
     }

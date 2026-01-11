@@ -1,22 +1,14 @@
 ﻿using ECommerceAPI.DTOs;
+using ECommerceAPI.Models;
 
 namespace ECommerceAPI.Services
 {
     public interface ICategoryService
     {
-        // Tüm kategorileri getir
-        Task<List<CategoryDto>> GetAllCategoriesAsync();
-
-        // Id'ye göre tek bir kategori getir
-        Task<CategoryDto?> GetCategoryByIdAsync(int id);
-
-        // Yeni kategori ekle (Geriye eklenen kategoriyi döndürür)
-        Task<CategoryDto> CreateCategoryAsync(CreateCategoryDto createDto);
-
-        // Kategoriyi güncelle
-        Task UpdateCategoryAsync(UpdateCategoryDto updateDto);
-
-        // Kategoriyi sil
-        Task DeleteCategoryAsync(int id);
+        Task<ServiceResponse<List<CategoryDto>>> GetAllCategoriesAsync();
+        Task<ServiceResponse<CategoryDto>> GetCategoryByIdAsync(int id);
+        Task<ServiceResponse<CategoryDto>> CreateCategoryAsync(CreateCategoryDto createDto);
+        Task<ServiceResponse<bool>> UpdateCategoryAsync(UpdateCategoryDto updateDto);
+        Task<ServiceResponse<bool>> DeleteCategoryAsync(int id);
     }
 }

@@ -13,49 +13,64 @@ namespace ECommerceAPI.Services
         {
             _context = context;
         }
-
-        public async Task<List<ProductDto>> GetAllProductsAsync()
+        private static ProductDto MapToDto(Product product)
         {
-            // Include: Ürünü çekerken Kategori tablosunu da birleştir (SQL JOIN)
-            var products = await _context.Products
-                .Include(p => p.Category)
-                .Select(p => new ProductDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Price = p.Price,
-                    Stock = p.Stock,
-                    // Eğer kategori silinmişse veya yoksa "Kategorisiz" yazsın
-                    CategoryName = p.Category != null ? p.Category.Name : "Kategorisiz"
-                })
-                .ToListAsync();
-
-            return products;
-        }
-
-        public async Task<ProductDto?> GetProductByIdAsync(int id)
-        {
-            var product = await _context.Products
-                .Include(p => p.Category)
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (product == null) return null;
-
             return new ProductDto
             {
                 Id = product.Id,
                 Name = product.Name,
+                Description = product.Description,
                 Price = product.Price,
                 Stock = product.Stock,
-                CategoryName = product.Category != null ? product.Category.Name : "Kategorisiz"
+                CategoryId = product.CategoryId,
+                CategoryName = product.Category?.Name ?? "Kategorisiz" // Null kontrolü
             };
         }
 
-        public async Task<ProductDto> CreateProductAsync(CreateProductDto createDto)
+        // LİSTELE (List<ProductDto> döner)
+        public async Task<ServiceResponse<List<ProductDto>>> GetAllProductsAsync()
         {
+            var response = new ServiceResponse<List<ProductDto>>();
+
+            var products = await _context.Products
+                                         .Include(p => p.Category)
+                                         .ToListAsync();
+
+            response.Data = products.Select(p => MapToDto(p)).ToList();
+            response.Success = true;
+            return response;
+        }
+
+        // TEK GETİR
+        public async Task<ServiceResponse<ProductDto>> GetProductByIdAsync(int id)
+        {
+            var response = new ServiceResponse<ProductDto>();
+            var product = await _context.Products
+                                        .Include(p => p.Category)
+                                        .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+            {
+                response.Success = false;
+                response.Message = "Ürün bulunamadı.";
+            }
+            else
+            {
+                response.Data = MapToDto(product);
+                response.Success = true;
+            }
+            return response;
+        }
+
+        // EKLE 
+        public async Task<ServiceResponse<ProductDto>> CreateProductAsync(CreateProductDto createDto)
+        {
+            var response = new ServiceResponse<ProductDto>();
+
             var newProduct = new Product
             {
                 Name = createDto.Name,
+                Description = createDto.Description,
                 Price = createDto.Price,
                 Stock = createDto.Stock,
                 CategoryId = createDto.CategoryId
@@ -64,39 +79,61 @@ namespace ECommerceAPI.Services
             _context.Products.Add(newProduct);
             await _context.SaveChangesAsync();
 
-            // Geriye dönmek için tekrar DTO oluşturuyoruz
-            return new ProductDto
-            {
-                Id = newProduct.Id,
-                Name = newProduct.Name,
-                Price = newProduct.Price,
-                Stock = newProduct.Stock,
-                CategoryName = "" // Yeni eklendiğinde ismini tekrar sorgulamaya gerek yok şimdilik
-            };
+            // Eklenen ürünü DTO olarak geri döndür
+            // İlişki adını görebilmek için kategoriyi tekrar yükleyebiliriz veya basitçe DTO döneriz
+            response.Data = MapToDto(newProduct);
+            response.Success = true;
+            response.Message = "Ürün başarıyla eklendi.";
+            return response;
         }
 
-        public async Task UpdateProductAsync(UpdateProductDto updateDto)
+        //  GÜNCELLE 
+        public async Task<ServiceResponse<bool>> UpdateProductAsync(UpdateProductDto updateDto)
         {
+            var response = new ServiceResponse<bool>();
             var product = await _context.Products.FindAsync(updateDto.Id);
-            if (product == null) return;
+
+            if (product == null)
+            {
+                response.Success = false;
+                response.Message = "Ürün bulunamadı.";
+                return response;
+            }
 
             product.Name = updateDto.Name;
             product.Price = updateDto.Price;
             product.Stock = updateDto.Stock;
+            product.Description = updateDto.Description;
             product.CategoryId = updateDto.CategoryId;
-            product.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            response.Data = true;
+            response.Success = true;
+            response.Message = "Ürün güncellendi.";
+            return response;
         }
 
-        public async Task DeleteProductAsync(int id)
+        // SİL 
+        public async Task<ServiceResponse<bool>> DeleteProductAsync(int id)
         {
+            var response = new ServiceResponse<bool>();
             var product = await _context.Products.FindAsync(id);
-            if (product != null)
+
+            if (product == null)
             {
-                _context.Products.Remove(product);
-                await _context.SaveChangesAsync();
+                response.Success = false;
+                response.Message = "Ürün bulunamadı.";
+                return response;
             }
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+
+            response.Data = true;
+            response.Success = true;
+            response.Message = "Ürün silindi.";
+            return response;
         }
     }
 }
